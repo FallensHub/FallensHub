@@ -4397,23 +4397,25 @@ function Orionlib_ui_ui:BuildMainFrame()
     })
     local dpiDragging = false
     local currentDpi = 1.0  -- 1.0 = 100%
+
+    -- Ensure a UIScale instance exists on main_frame for DPI scaling
+    local dpiUIScale = self.main_frame:FindFirstChildOfClass("UIScale")
+    if not dpiUIScale then
+        dpiUIScale = create("UIScale", {Scale = 1, Parent = self.main_frame})
+    end
+
     local function applyDpi(ratio)
         ratio = math.clamp(ratio, 0, 1)
         currentDpi = 0.6 + ratio * 0.8  -- range 60%–140%
         local pct = math.floor(currentDpi * 100 + 0.5)
         dpiValueLabel.Text = pct .. "%"
         dpiSliderFill.Size = UDim2.new(ratio, 0, 1, 0)
-        -- Apply scale_factor equivalent by scaling screen gui
-        if self.screen_gui then
-            pcall(function()
-                self.screen_gui.ScreenInsets = Enum.ScreenInsets.None
-            end)
-        end
-        if self.main_frame then
-            local curSize = self.main_frame.AbsoluteSize
-            self:_ResizeLayout(curSize.X * (currentDpi / (currentDpi == 0 and 1 or currentDpi)), curSize.Y)
-        end
+        -- Apply scale via UIScale so the entire UI frame scales uniformly
+        tween_to(dpiUIScale, {Scale = currentDpi}, 0.12)
     end
+
+    -- Init slider fill to center (100%) on first build
+    dpiSliderFill.Size = UDim2.new(0.5, 0, 1, 0)
     dpiSliderBtn.MouseButton1Down:Connect(function() dpiDragging = true end)
     self:_TrackConnection(input_service.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
