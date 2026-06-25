@@ -73,7 +73,7 @@ local default_icons = {
 local Orionlib_ui_img = writefile("Orionlib_ui_logo.gif", game:HttpGet(
     "https://raw.githubusercontent.com/FallensHub/FallensHub/refs/heads/main/Proyek%20Baru%20%5B4FEB71D%5D.gif"
 ))
-local Orionlib_ui_logo = getcustomasset("Orionlib_ui_logo.png")
+local Orionlib_ui_logo = getcustomasset("Orionlib_ui_logo.gif")
 
 --#endregion═════════════════════════════════════════════════════════════════════
 
