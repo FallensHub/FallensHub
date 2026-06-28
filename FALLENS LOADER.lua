@@ -7,7 +7,7 @@ local LocalPlayer   = Players.LocalPlayer
 local PlayerGui     = LocalPlayer:WaitForChild("PlayerGui")
 
 local VALIDATE_URL = "https://getkeypalen-production.up.railway.app/validate?key="
-local MAIN_SCRIPT  = "https://raw.githubusercontent.com/FallensHub/FallensHub/refs/heads/main/FREEMIUM"
+local MAIN_SCRIPT  = "https://raw.githubusercontent.com/FallensHub/FallensHub/refs/heads/main/FREEMIUM1"
 local STORAGE_KEY  = "FallensHub_SavedKey"
 local TTL_MS       = 24 * 60 * 60 * 1000  -- 24 jam dalam ms
 
