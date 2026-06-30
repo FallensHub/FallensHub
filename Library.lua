@@ -209,12 +209,6 @@ local Library = {
     ShowToggleFrameInKeybinds = true,
     NotifyOnError = false,
 
-    ShowAccentBar = true,
-    AccentBarRainbow = true,
-    AccentBarSpeed = 0.15,
-    AccentBarGlowSize = 18,
-    ShowTabLabelGlow = true,
-
     CantDragForced = false,
     DraggableElements = {},
 
@@ -359,7 +353,12 @@ local Templates = {
         CompactWidthActivation = 128,
 
         --// Background \\--
-        BackgroundImage = ""
+        BackgroundImage = "",
+
+        --// Accent Bar \\--
+        RainbowAccentBar = true,
+        AccentBarThickness = 3,
+        AccentBarSpeed = 0.15,
     },
     Dialog = {
         Title = "Dialog",
@@ -2240,6 +2239,7 @@ function Library:AddContextMenu(
 )
     local Menu
     local ParentGui = Holder:FindFirstAncestorOfClass("ScreenGui")
+    local MenuZIndex = math.max(10, Holder.ZIndex + 1)
     if ParentGui ~= ScreenGui and (Library.ActiveLoading and ParentGui ~= Library.ActiveLoading.ScreenGui) then
         ParentGui = ScreenGui
     end
@@ -2256,7 +2256,7 @@ function Library:AddContextMenu(
             Size = typeof(Size) == "function" and Size() or Size,
             TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
             Visible = false,
-            ZIndex = 10,
+            ZIndex = MenuZIndex,
             Parent = ParentGui,
         })
     else
@@ -2264,7 +2264,7 @@ function Library:AddContextMenu(
             BackgroundColor3 = "BackgroundColor",
             Size = typeof(Size) == "function" and Size() or Size,
             Visible = false,
-            ZIndex = 10,
+            ZIndex = MenuZIndex,
             Parent = ParentGui,
         })
     end
@@ -4351,6 +4351,15 @@ do
                 end
             end
 
+            if Label.Addons then
+                for Index = #Label.Addons, 1, -1 do
+                    local Addon = table.remove(Label.Addons, Index)
+                    if Addon and Addon.Destroy then
+                        Addon:Destroy()
+                    end
+                end
+            end
+
             if TextLabel then 
                 TextLabel:Destroy() 
             end
@@ -5564,7 +5573,7 @@ do
             Size = UDim2.fromScale(1, 1),
             Text = "",
             TextSize = 14,
-            ZIndex = 2,
+            ZIndex = Bar.ZIndex + 2,
             Parent = Bar,
         })
         New("UIStroke", {
@@ -5581,7 +5590,7 @@ do
                 Size = UDim2.fromScale(1, 1),
                 Text = "",
                 TextSize = 14,
-                ZIndex = 3,
+                ZIndex = Bar.ZIndex + 3,
                 Visible = false,
                 ClearTextOnFocus = false,
                 Parent = Bar,
@@ -5597,6 +5606,7 @@ do
         local Fill = New("Frame", {
             BackgroundColor3 = "AccentColor",
             Size = UDim2.fromScale(0.5, 1),
+            ZIndex = Bar.ZIndex + 1,
             Parent = Bar,
         })
 
@@ -8008,6 +8018,81 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 1),
         })
 
+        --// Rainbow Accent Bar (top edge glow) \\--
+        do
+            local GlowHeight = math.max(WindowInfo.AccentBarThickness * 5, 14)
+
+            -- Soft halo behind the bar, gives it a "glow" look without needing a blur texture
+            local AccentGlow = New("Frame", {
+                Name = "AccentGlow",
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0.5, 0, 0, -GlowHeight / 2.5),
+                Size = UDim2.new(1, 0, 0, GlowHeight),
+                BackgroundColor3 = Color3.new(1, 1, 1),
+                BackgroundTransparency = 0.55,
+                BorderSizePixel = 0,
+                ZIndex = 0,
+                Visible = WindowInfo.RainbowAccentBar,
+                Parent = MainFrame,
+            })
+            New("UIGradient", {
+                Color = ColorSequence.new(HueSequenceTable),
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 1),
+                    NumberSequenceKeypoint.new(0.5, 0),
+                    NumberSequenceKeypoint.new(1, 1),
+                }),
+                Rotation = 0,
+                Parent = AccentGlow,
+            })
+
+            -- Crisp rainbow line sitting right on the edge
+            local AccentBar = New("Frame", {
+                Name = "AccentBar",
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(1, 0, 0, WindowInfo.AccentBarThickness),
+                BorderSizePixel = 0,
+                ZIndex = 1,
+                Visible = WindowInfo.RainbowAccentBar,
+                Parent = MainFrame,
+            })
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                    Parent = AccentBar,
+                })
+            )
+
+            local AccentGradient = New("UIGradient", {
+                Color = ColorSequence.new(HueSequenceTable),
+                Parent = AccentBar,
+            })
+            local GlowGradient = AccentGlow.UIGradient
+
+            Library.AccentBarEnabled = WindowInfo.RainbowAccentBar
+            Library.AccentBar = AccentBar
+            Library.AccentGlow = AccentGlow
+
+            function Library:SetAccentBarEnabled(State: boolean)
+                Library.AccentBarEnabled = State
+                AccentBar.Visible = State
+                AccentGlow.Visible = State
+            end
+
+            -- Animate the hue so the bar/glow cycle through colors smoothly
+            local Hue = 0
+            Library:GiveSignal(RunService.Heartbeat:Connect(function(DeltaTime)
+                if not Library.AccentBarEnabled then
+                    return
+                end
+
+                Hue = (Hue + DeltaTime * WindowInfo.AccentBarSpeed) % 1
+                AccentGradient.Offset = Vector2.new(Hue, 0)
+                GlowGradient.Offset = Vector2.new(Hue, 0)
+            end))
+        end
+
         DividerLine = New("Frame", {
             BackgroundColor3 = "OutlineColor",
             Position = UDim2.fromOffset(InitialLeftWidth, 0),
@@ -8041,44 +8126,6 @@ function Library:CreateWindow(WindowInfo)
         if WindowInfo.Center then
             MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2, 0.5, -MainFrame.Size.Y.Offset / 2)
         end
-
-        --// Accent Glow Bar \\-
-        local AccentBarHolder = New("Frame", {
-            BackgroundTransparency = 1,
-            ClipsDescendants = true,
-            Size = UDim2.new(1, 0, 0, math.max(3, Library.AccentBarGlowSize)),
-            Visible = Library.ShowAccentBar,
-            ZIndex = 5,
-            Parent = MainFrame,
-        })
-
-        local AccentBarGlow = New("ImageLabel", {
-            AnchorPoint = Vector2.new(0.5, 0),
-            BackgroundTransparency = 1,
-            Image = "rbxasset://textures/ui/Glow.png",
-            ImageColor3 = Library.Scheme.AccentColor,
-            ImageTransparency = 0.35,
-            Position = UDim2.new(0.5, 0, 0, -Library.AccentBarGlowSize),
-            ScaleType = Enum.ScaleType.Stretch,
-            Size = UDim2.new(1.5, 0, 0, Library.AccentBarGlowSize * 3),
-            ZIndex = 4,
-            Parent = AccentBarHolder,
-        })
-
-        local AccentBar = New("Frame", {
-            AnchorPoint = Vector2.new(0, 0),
-            BackgroundColor3 = Library.Scheme.AccentColor,
-            BorderSizePixel = 0,
-            Position = UDim2.fromScale(0, 0),
-            Size = UDim2.new(1, 0, 0, 2),
-            ZIndex = 6,
-            Parent = AccentBarHolder,
-        })
-
-        local AccentBarGradient = New("UIGradient", {
-            Color = ColorSequence.new(Library.Scheme.AccentColor),
-            Parent = AccentBar,
-        })
 
         --// Top Bar \\-
         local TopBar = New("Frame", {
@@ -8189,72 +8236,6 @@ function Library:CreateWindow(WindowInfo)
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = CurrentTabInfo,
         })
-
-        local CurrentTabLabelGlow = New("UIStroke", {
-            Color = Library.Scheme.AccentColor,
-            Thickness = 1,
-            Transparency = 0.5,
-            Enabled = Library.ShowTabLabelGlow,
-            Parent = CurrentTabLabel,
-        })
-
-        do
-            local HueOffset = 0
-            local PulseAlpha = 0
-            Library:GiveSignal(RunService.RenderStepped:Connect(function(DeltaTime)
-                AccentBarHolder.Visible = Library.ShowAccentBar
-                CurrentTabLabelGlow.Enabled = Library.ShowTabLabelGlow
-
-                if not Library.ShowTabLabelGlow then
-                    CurrentTabLabel.TextColor3 = Library.Scheme.FontColor
-                end
-
-                if not Library.ShowAccentBar and not Library.ShowTabLabelGlow then
-                    return
-                end
-
-                PulseAlpha = (PulseAlpha + DeltaTime * 1.5) % (math.pi * 2)
-                local PulseTransparency = 0.35 + (math.sin(PulseAlpha) * 0.5 + 0.5) * 0.35
-
-                if Library.AccentBarRainbow then
-                    HueOffset = (HueOffset + DeltaTime * Library.AccentBarSpeed) % 1
-
-                    local Keypoints = {}
-                    for Index = 0, 8 do
-                        local Alpha = Index / 8
-                        local Hue = (HueOffset + Alpha) % 1
-                        table.insert(Keypoints, ColorSequenceKeypoint.new(Alpha, Color3.fromHSV(Hue, 0.85, 1)))
-                    end
-
-                    local Sequence = ColorSequence.new(Keypoints)
-                    local LabelGlowColor = Color3.fromHSV(HueOffset, 0.85, 1)
-
-                    if Library.ShowAccentBar then
-                        AccentBarGradient.Color = Sequence
-                        AccentBarGlow.ImageColor3 = LabelGlowColor
-                    end
-
-                    if Library.ShowTabLabelGlow then
-                        CurrentTabLabelGlow.Color = LabelGlowColor
-                        CurrentTabLabel.TextColor3 = LabelGlowColor
-                    end
-                else
-                    if Library.ShowAccentBar then
-                        AccentBarGradient.Color = ColorSequence.new(Library.Scheme.AccentColor)
-                        AccentBarGlow.ImageColor3 = Library.Scheme.AccentColor
-                    end
-
-                    if Library.ShowTabLabelGlow then
-                        CurrentTabLabelGlow.Color = Library.Scheme.AccentColor
-                        CurrentTabLabel.TextColor3 = Library.Scheme.AccentColor
-                    end
-                end
-
-                if Library.ShowTabLabelGlow then
-                    CurrentTabLabelGlow.Transparency = PulseTransparency
-                end
-            end))
-        end
 
         CurrentTabDescription = New("TextLabel", {
             BackgroundTransparency = 1,
@@ -8573,9 +8554,8 @@ function Library:CreateWindow(WindowInfo)
     end
 
     function Window:ShowTabInfo(Name, Description)
-        CurrentTabLabel.Text = Name or ""
-        CurrentTabDescription.Text = Description or ""
-        CurrentTabDescription.Visible = (Description ~= nil and Description ~= "")
+        CurrentTabLabel.Text = Name
+        CurrentTabDescription.Text = Description
 
         if IsDefaultSearchbarSize then
             SearchBox.Size = UDim2.fromScale(0.5, 1)
@@ -8832,6 +8812,7 @@ function Library:CreateWindow(WindowInfo)
             Connections = {},
             Destroyed = false,
 
+            Window = Window,
             Groupboxes = {},
             Tabboxes = {},
             DependencyGroupboxes = {},
@@ -9533,7 +9514,9 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Window:ShowTabInfo(Name, Description)
+            if Description then
+                Window:ShowTabInfo(Name, Description)
+            end
 
             TabContainer.Visible = true
             Tab:RefreshSides()
@@ -9633,46 +9616,6 @@ function Library:CreateWindow(WindowInfo)
         TabButton.MouseButton1Click:Connect(Tab.Show)
 
         Library.Tabs[Name] = Tab
-
-        return Tab
-    end
-
-    function Window:AddSettingsTab(Info)
-        Info = Info or {}
-
-        local Tab = Window:AddTab(Info.Name or "Settings", Info.Icon or "settings", Info.Description)
-
-        local MenuBox = Tab:AddLeftGroupbox("Menu")
-
-        MenuBox:AddToggle("ShowAccentBar", {
-            Text = "Accent Bar Glow",
-            Default = Library.ShowAccentBar,
-            Tooltip = "Shows a glowing accent bar above the menu header",
-            Callback = function(Value)
-                Library.ShowAccentBar = Value
-            end,
-        })
-
-        MenuBox:AddToggle("AccentBarRainbow", {
-            Text = "Rainbow Accent Bar",
-            Default = Library.AccentBarRainbow,
-            Tooltip = "Cycles the accent bar through rainbow colors instead of using the accent color",
-            Callback = function(Value)
-                Library.AccentBarRainbow = Value
-            end,
-        })
-
-        MenuBox:AddSlider("AccentBarSpeed", {
-            Text = "Accent Bar Speed",
-            Default = Library.AccentBarSpeed,
-            Min = 0.05,
-            Max = 1,
-            Rounding = 2,
-            Compact = true,
-            Callback = function(Value)
-                Library.AccentBarSpeed = Value
-            end,
-        })
 
         return Tab
     end
@@ -9777,6 +9720,7 @@ function Library:CreateWindow(WindowInfo)
             Elements = {},
             Description = Description,
             IsKeyTab = true,
+            Window = Window,
         }
 
         function Tab:AddKeyBox(Callback)
@@ -9903,7 +9847,9 @@ function Library:CreateWindow(WindowInfo)
             end
             TabContainer.Visible = true
 
-            Window:ShowTabInfo(Name, Description)
+            if Description then
+                Window:ShowTabInfo(Name, Description)
+            end
 
             Tab:RefreshSides()
 
@@ -10169,6 +10115,7 @@ function Library:CreateWindow(WindowInfo)
         })
 
         local Dialog = {
+            Destroyed = false,
             Elements = {},
             Container = DialogContainer,
         }
@@ -10222,7 +10169,24 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Dialog:Dismiss()
-            Library.ActiveDialog = nil
+            if Dialog.Destroyed then
+                return
+            end
+
+            Dialog.Destroyed = true
+
+            if Library.ActiveDialog == Dialog then
+                Library.ActiveDialog = nil
+            end
+
+            for Index = #Dialog.Elements, 1, -1 do
+                local Element = Dialog.Elements[Index]
+                if Element and Element.Destroy then
+                    Element:Destroy()
+                end
+            end
+            table.clear(Dialog.Elements)
+
             local CloseTween = TweenService:Create(DialogScale, Library.TweenInfo, { Scale = 0.95 })
             TweenService:Create(DialogOverlay, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
             CloseTween:Play()
