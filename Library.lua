@@ -8079,35 +8079,6 @@ function Library:CreateWindow(WindowInfo)
             Parent = AccentBar,
         })
 
-        do
-            local HueOffset = 0
-            Library:GiveSignal(RunService.RenderStepped:Connect(function(DeltaTime)
-                if not Library.ShowAccentBar then
-                    AccentBarHolder.Visible = false
-                    return
-                end
-                AccentBarHolder.Visible = true
-
-                if Library.AccentBarRainbow then
-                    HueOffset = (HueOffset + DeltaTime * Library.AccentBarSpeed) % 1
-
-                    local Keypoints = {}
-                    for Index = 0, 8 do
-                        local Alpha = Index / 8
-                        local Hue = (HueOffset + Alpha) % 1
-                        table.insert(Keypoints, ColorSequenceKeypoint.new(Alpha, Color3.fromHSV(Hue, 0.85, 1)))
-                    end
-
-                    local Sequence = ColorSequence.new(Keypoints)
-                    AccentBarGradient.Color = Sequence
-                    AccentBarGlow.ImageColor3 = Color3.fromHSV(HueOffset, 0.85, 1)
-                else
-                    AccentBarGradient.Color = ColorSequence.new(Library.Scheme.AccentColor)
-                    AccentBarGlow.ImageColor3 = Library.Scheme.AccentColor
-                end
-            end))
-        end
-
         --// Top Bar \\-
         local TopBar = New("Frame", {
             BackgroundTransparency = 1,
@@ -8217,6 +8188,55 @@ function Library:CreateWindow(WindowInfo)
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = CurrentTabInfo,
         })
+
+        local CurrentTabLabelGlow = New("UIStroke", {
+            Color = Library.Scheme.AccentColor,
+            Thickness = 1,
+            Transparency = 0.5,
+            Enabled = Library.ShowAccentBar,
+            Parent = CurrentTabLabel,
+        })
+
+        do
+            local HueOffset = 0
+            local PulseAlpha = 0
+            Library:GiveSignal(RunService.RenderStepped:Connect(function(DeltaTime)
+                if not Library.ShowAccentBar then
+                    AccentBarHolder.Visible = false
+                    CurrentTabLabelGlow.Enabled = false
+                    return
+                end
+                AccentBarHolder.Visible = true
+                CurrentTabLabelGlow.Enabled = true
+
+                PulseAlpha = (PulseAlpha + DeltaTime * 1.5) % (math.pi * 2)
+                local PulseTransparency = 0.35 + (math.sin(PulseAlpha) * 0.5 + 0.5) * 0.35
+
+                if Library.AccentBarRainbow then
+                    HueOffset = (HueOffset + DeltaTime * Library.AccentBarSpeed) % 1
+
+                    local Keypoints = {}
+                    for Index = 0, 8 do
+                        local Alpha = Index / 8
+                        local Hue = (HueOffset + Alpha) % 1
+                        table.insert(Keypoints, ColorSequenceKeypoint.new(Alpha, Color3.fromHSV(Hue, 0.85, 1)))
+                    end
+
+                    local Sequence = ColorSequence.new(Keypoints)
+                    local LabelGlowColor = Color3.fromHSV(HueOffset, 0.85, 1)
+
+                    AccentBarGradient.Color = Sequence
+                    AccentBarGlow.ImageColor3 = LabelGlowColor
+                    CurrentTabLabelGlow.Color = LabelGlowColor
+                else
+                    AccentBarGradient.Color = ColorSequence.new(Library.Scheme.AccentColor)
+                    AccentBarGlow.ImageColor3 = Library.Scheme.AccentColor
+                    CurrentTabLabelGlow.Color = Library.Scheme.AccentColor
+                end
+
+                CurrentTabLabelGlow.Transparency = PulseTransparency
+            end))
+        end
 
         CurrentTabDescription = New("TextLabel", {
             BackgroundTransparency = 1,
@@ -9595,6 +9615,46 @@ function Library:CreateWindow(WindowInfo)
         TabButton.MouseButton1Click:Connect(Tab.Show)
 
         Library.Tabs[Name] = Tab
+
+        return Tab
+    end
+
+    function Window:AddSettingsTab(Info)
+        Info = Info or {}
+
+        local Tab = Window:AddTab(Info.Name or "Settings", Info.Icon or "settings", Info.Description)
+
+        local MenuBox = Tab:AddLeftGroupbox("Menu")
+
+        MenuBox:AddToggle("ShowAccentBar", {
+            Text = "Accent Bar Glow",
+            Default = Library.ShowAccentBar,
+            Tooltip = "Shows a glowing accent bar above the menu header",
+            Callback = function(Value)
+                Library.ShowAccentBar = Value
+            end,
+        })
+
+        MenuBox:AddToggle("AccentBarRainbow", {
+            Text = "Rainbow Accent Bar",
+            Default = Library.AccentBarRainbow,
+            Tooltip = "Cycles the accent bar through rainbow colors instead of using the accent color",
+            Callback = function(Value)
+                Library.AccentBarRainbow = Value
+            end,
+        })
+
+        MenuBox:AddSlider("AccentBarSpeed", {
+            Text = "Accent Bar Speed",
+            Default = Library.AccentBarSpeed,
+            Min = 0.05,
+            Max = 1,
+            Rounding = 2,
+            Compact = true,
+            Callback = function(Value)
+                Library.AccentBarSpeed = Value
+            end,
+        })
 
         return Tab
     end
