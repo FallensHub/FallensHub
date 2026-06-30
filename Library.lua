@@ -213,6 +213,7 @@ local Library = {
     AccentBarRainbow = true,
     AccentBarSpeed = 0.15,
     AccentBarGlowSize = 18,
+    ShowTabLabelGlow = true,
 
     CantDragForced = false,
     DraggableElements = {},
@@ -8193,7 +8194,7 @@ function Library:CreateWindow(WindowInfo)
             Color = Library.Scheme.AccentColor,
             Thickness = 1,
             Transparency = 0.5,
-            Enabled = Library.ShowAccentBar,
+            Enabled = Library.ShowTabLabelGlow,
             Parent = CurrentTabLabel,
         })
 
@@ -8201,13 +8202,16 @@ function Library:CreateWindow(WindowInfo)
             local HueOffset = 0
             local PulseAlpha = 0
             Library:GiveSignal(RunService.RenderStepped:Connect(function(DeltaTime)
-                if not Library.ShowAccentBar then
-                    AccentBarHolder.Visible = false
-                    CurrentTabLabelGlow.Enabled = false
+                AccentBarHolder.Visible = Library.ShowAccentBar
+                CurrentTabLabelGlow.Enabled = Library.ShowTabLabelGlow
+
+                if not Library.ShowTabLabelGlow then
+                    CurrentTabLabel.TextColor3 = Library.Scheme.FontColor
+                end
+
+                if not Library.ShowAccentBar and not Library.ShowTabLabelGlow then
                     return
                 end
-                AccentBarHolder.Visible = true
-                CurrentTabLabelGlow.Enabled = true
 
                 PulseAlpha = (PulseAlpha + DeltaTime * 1.5) % (math.pi * 2)
                 local PulseTransparency = 0.35 + (math.sin(PulseAlpha) * 0.5 + 0.5) * 0.35
@@ -8225,16 +8229,30 @@ function Library:CreateWindow(WindowInfo)
                     local Sequence = ColorSequence.new(Keypoints)
                     local LabelGlowColor = Color3.fromHSV(HueOffset, 0.85, 1)
 
-                    AccentBarGradient.Color = Sequence
-                    AccentBarGlow.ImageColor3 = LabelGlowColor
-                    CurrentTabLabelGlow.Color = LabelGlowColor
+                    if Library.ShowAccentBar then
+                        AccentBarGradient.Color = Sequence
+                        AccentBarGlow.ImageColor3 = LabelGlowColor
+                    end
+
+                    if Library.ShowTabLabelGlow then
+                        CurrentTabLabelGlow.Color = LabelGlowColor
+                        CurrentTabLabel.TextColor3 = LabelGlowColor
+                    end
                 else
-                    AccentBarGradient.Color = ColorSequence.new(Library.Scheme.AccentColor)
-                    AccentBarGlow.ImageColor3 = Library.Scheme.AccentColor
-                    CurrentTabLabelGlow.Color = Library.Scheme.AccentColor
+                    if Library.ShowAccentBar then
+                        AccentBarGradient.Color = ColorSequence.new(Library.Scheme.AccentColor)
+                        AccentBarGlow.ImageColor3 = Library.Scheme.AccentColor
+                    end
+
+                    if Library.ShowTabLabelGlow then
+                        CurrentTabLabelGlow.Color = Library.Scheme.AccentColor
+                        CurrentTabLabel.TextColor3 = Library.Scheme.AccentColor
+                    end
                 end
 
-                CurrentTabLabelGlow.Transparency = PulseTransparency
+                if Library.ShowTabLabelGlow then
+                    CurrentTabLabelGlow.Transparency = PulseTransparency
+                end
             end))
         end
 
