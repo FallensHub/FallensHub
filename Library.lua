@@ -353,12 +353,7 @@ local Templates = {
         CompactWidthActivation = 128,
 
         --// Background \\--
-        BackgroundImage = "",
-
-        --// Accent Bar \\--
-        RainbowAccentBar = true,
-        AccentBarThickness = 3,
-        AccentBarSpeed = 0.15,
+        BackgroundImage = ""
     },
     Dialog = {
         Title = "Dialog",
@@ -2099,6 +2094,7 @@ function Library:AddDraggableImageButton(...)
     local Func
     local ExcludeScaling
     local ExcludeDragging
+    local Circular -- [BARU]
 
     if typeof(Params) == "table" then
         Icon = Params.Icon
@@ -2106,6 +2102,7 @@ function Library:AddDraggableImageButton(...)
         Func = Params.Callback or Params.Func
         ExcludeScaling = Params.ExcludeScaling
         ExcludeDragging = Params.ExcludeDragging
+        Circular = Params.Circular -- [BARU]
     elseif typeof(Params) == "string" or typeof(Params) == "number" then
         Icon = Params
         IconSize = select(2, ...)
@@ -2121,6 +2118,7 @@ function Library:AddDraggableImageButton(...)
         Position = UDim2.fromOffset(6, 6),
         Size = UDim2.fromOffset(IconSize + 12, IconSize + 12),
         Text = "",
+        ClipsDescendants = true, -- [BARU] biar icon ikut ke-mask bulat
         ZIndex = 10,
         Parent = ScreenGui,
     })
@@ -2135,13 +2133,22 @@ function Library:AddDraggableImageButton(...)
         Parent = Button,
     })
 
-    table.insert(
-        Library.Corners, 
+    -- [DIUBAH] corner jadi kondisional
+    if Circular then
         New("UICorner", {
-            CornerRadius = UDim.new(0, Library.CornerRadius),
+            CornerRadius = UDim.new(1, 0),
             Parent = Button,
         })
-    )
+    else
+        table.insert(
+            Library.Corners, 
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius),
+                Parent = Button,
+            })
+        )
+    end
+
     if not ExcludeScaling then
         table.insert(
             Library.Scales,
@@ -8018,81 +8025,6 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 1),
         })
 
-        --// Rainbow Accent Bar (top edge glow) \\--
-        do
-            local GlowHeight = math.max(WindowInfo.AccentBarThickness * 5, 14)
-
-            -- Soft halo behind the bar, gives it a "glow" look without needing a blur texture
-            local AccentGlow = New("Frame", {
-                Name = "AccentGlow",
-                AnchorPoint = Vector2.new(0.5, 0),
-                Position = UDim2.new(0.5, 0, 0, -GlowHeight / 2.5),
-                Size = UDim2.new(1, 0, 0, GlowHeight),
-                BackgroundColor3 = Color3.new(1, 1, 1),
-                BackgroundTransparency = 0.55,
-                BorderSizePixel = 0,
-                ZIndex = 0,
-                Visible = WindowInfo.RainbowAccentBar,
-                Parent = MainFrame,
-            })
-            New("UIGradient", {
-                Color = ColorSequence.new(HueSequenceTable),
-                Transparency = NumberSequence.new({
-                    NumberSequenceKeypoint.new(0, 1),
-                    NumberSequenceKeypoint.new(0.5, 0),
-                    NumberSequenceKeypoint.new(1, 1),
-                }),
-                Rotation = 0,
-                Parent = AccentGlow,
-            })
-
-            -- Crisp rainbow line sitting right on the edge
-            local AccentBar = New("Frame", {
-                Name = "AccentBar",
-                Position = UDim2.fromOffset(0, 0),
-                Size = UDim2.new(1, 0, 0, WindowInfo.AccentBarThickness),
-                BorderSizePixel = 0,
-                ZIndex = 1,
-                Visible = WindowInfo.RainbowAccentBar,
-                Parent = MainFrame,
-            })
-            table.insert(
-                Library.Corners,
-                New("UICorner", {
-                    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
-                    Parent = AccentBar,
-                })
-            )
-
-            local AccentGradient = New("UIGradient", {
-                Color = ColorSequence.new(HueSequenceTable),
-                Parent = AccentBar,
-            })
-            local GlowGradient = AccentGlow.UIGradient
-
-            Library.AccentBarEnabled = WindowInfo.RainbowAccentBar
-            Library.AccentBar = AccentBar
-            Library.AccentGlow = AccentGlow
-
-            function Library:SetAccentBarEnabled(State: boolean)
-                Library.AccentBarEnabled = State
-                AccentBar.Visible = State
-                AccentGlow.Visible = State
-            end
-
-            -- Animate the hue so the bar/glow cycle through colors smoothly
-            local Hue = 0
-            Library:GiveSignal(RunService.Heartbeat:Connect(function(DeltaTime)
-                if not Library.AccentBarEnabled then
-                    return
-                end
-
-                Hue = (Hue + DeltaTime * WindowInfo.AccentBarSpeed) % 1
-                AccentGradient.Offset = Vector2.new(Hue, 0)
-                GlowGradient.Offset = Vector2.new(Hue, 0)
-            end))
-        end
-
         DividerLine = New("Frame", {
             BackgroundColor3 = "OutlineColor",
             Position = UDim2.fromOffset(InitialLeftWidth, 0),
@@ -8134,6 +8066,104 @@ function Library:CreateWindow(WindowInfo)
             Parent = MainFrame,
         })
         Library:MakeDraggable(MainFrame, TopBar, false, true)
+        
+        --// Accent Glow Bar \\--
+        local AccentBarThickness = 3
+        local AccentBarEnabled = true
+        local AccentGlowTween -- pegang tween aktif biar bisa di-cancel
+
+        local AccentBar = New("Frame", {
+            Name = "AccentBar",
+            BackgroundColor3 = "AccentColor",
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, AccentBarThickness),
+            Visible = AccentBarEnabled,
+            ZIndex = 50,
+            Parent = MainFrame,
+        })
+        local AccentBarCorner = New("UICorner", {
+            TopLeftRadius = UDim.new(0, WindowInfo.CornerRadius),
+            TopRightRadius = UDim.new(0, WindowInfo.CornerRadius),
+            BottomLeftRadius = UDim.new(0, 0),
+            BottomRightRadius = UDim.new(0, 0),
+            Parent = AccentBar,
+        })
+        table.insert(Library.SpecificCorners, AccentBarCorner)
+
+        local AccentGlow = New("ImageLabel", {
+            Name = "AccentGlow",
+            AnchorPoint = Vector2.new(0.5, 0),
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0.5, 0, 0, -10),
+            Size = UDim2.new(1, 20, 0, AccentBarThickness + 19),
+            Image = "rbxassetid://0", -- <-- GANTI dengan gambar glow/blur soft
+            ImageColor3 = "AccentColor",
+            ImageTransparency = 0.4,
+            ScaleType = Enum.ScaleType.Stretch,
+            Visible = AccentBarEnabled,
+            ZIndex = 49,
+            Parent = MainFrame,
+        })
+
+        local function StopAccentGlowLoop()
+            if AccentGlowTween then
+                AccentGlowTween:Cancel()
+                AccentGlowTween = nil
+            end
+        end
+
+        local function StartAccentGlowLoop()
+            StopAccentGlowLoop()
+
+            task.spawn(function()
+                while AccentBarEnabled and AccentGlow and AccentGlow.Parent and not Library.Unloaded do
+                    AccentGlowTween = TweenService:Create(AccentGlow, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        ImageTransparency = 0.65,
+                    })
+                    AccentGlowTween:Play()
+                    task.wait(1.3)
+                    if not AccentBarEnabled or not (AccentGlow and AccentGlow.Parent) or Library.Unloaded then break end
+
+                    AccentGlowTween = TweenService:Create(AccentGlow, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        ImageTransparency = 0.3,
+                    })
+                    AccentGlowTween:Play()
+                    task.wait(1.3)
+                end
+            end)
+        end
+
+        --// Public Controls \\--
+        function Window:SetAccentBarEnabled(Enabled: boolean)
+            AccentBarEnabled = Enabled
+
+            AccentBar.Visible = Enabled
+            AccentGlow.Visible = Enabled
+
+            if Enabled then
+                StartAccentGlowLoop()
+            else
+                StopAccentGlowLoop()
+            end
+        end
+
+        function Window:GetAccentBarEnabled()
+            return AccentBarEnabled
+        end
+
+        function Window:SetAccentBarThickness(Thickness: number)
+            Thickness = math.clamp(Thickness, 1, 12)
+            AccentBarThickness = Thickness
+
+            AccentBar.Size = UDim2.new(1, 0, 0, Thickness)
+            AccentGlow.Size = UDim2.new(1, 20, 0, Thickness + 19)
+        end
+
+        function Window:GetAccentBarThickness()
+            return AccentBarThickness
+        end
+
+        StartAccentGlowLoop()
 
         --// Title \\--
         TitleHolder = New("Frame", {
@@ -10545,9 +10575,16 @@ function Library:CreateWindow(WindowInfo)
     end
 
     if Library.IsMobile then
-        local ToggleButton = Library:AddDraggableButton("Toggle", function()
-            Library:Toggle()
-        end, true, true)
+        local ToggleButton = Library:AddDraggableImageButton({
+            Icon = "rbxassetid://91112706169806",
+            IconSize = 26,
+            Circular = true,
+            ExcludeScaling = true,
+            ExcludeDragging = true,
+            Callback = function()
+                Library:Toggle()
+            end,
+        })
 
         local LockButton = Library:AddDraggableButton("Lock", function(self)
             Library.CantDragForced = not Library.CantDragForced
