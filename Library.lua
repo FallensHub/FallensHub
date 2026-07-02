@@ -355,7 +355,11 @@ local Templates = {
         CompactWidthActivation = 128,
 
         --// Background \\--
-        BackgroundImage = ""
+        BackgroundImage = "",
+
+        --// Profile \\--
+        ShowProfile = true,
+        ProfileHeight = 54,
     },
     Dialog = {
         Title = "Dialog",
@@ -7977,6 +7981,18 @@ function Library:CreateWindow(WindowInfo)
     local HeaderGlow
     local HeaderGlowBar
 
+    --// Profile \\--
+    local ProfileFrame
+    local ProfileAvatar
+    local ProfileNameLabel
+    local ProfileUserLabel
+    local ProfileBarHeight = WindowInfo.ProfileHeight
+    local ProfileVisible = WindowInfo.ShowProfile and true or false
+
+    local function GetProfileOffset()
+        return ProfileVisible and ProfileBarHeight or 0
+    end
+
     local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
@@ -8369,12 +8385,116 @@ function Library:CreateWindow(WindowInfo)
             CanvasSize = UDim2.fromScale(0, 0),
             Position = UDim2.fromOffset(0, 49),
             ScrollBarThickness = 0,
-            Size = UDim2.new(0, InitialLeftWidth, 1, -70),
+            Size = UDim2.new(0, InitialLeftWidth, 1, -70 - GetProfileOffset()),
             Parent = MainFrame,
         })
         New("UIListLayout", {
             Parent = Tabs,
         })
+
+        --// Profile \\--
+        ProfileFrame = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundTransparency = 1,
+            Name = "Profile",
+            Position = UDim2.new(0, 0, 1, -21),
+            Size = UDim2.new(0, InitialLeftWidth, 0, ProfileBarHeight),
+            Visible = ProfileVisible,
+            Parent = MainFrame,
+        })
+        Library:MakeLine(ProfileFrame, {
+            Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.new(1, 0, 0, 1),
+        })
+
+        local ProfileButton = New("TextButton", {
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "",
+            Parent = ProfileFrame,
+        })
+
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, 10),
+            PaddingRight = UDim.new(0, 10),
+            Parent = ProfileButton,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 8),
+            Parent = ProfileButton,
+        })
+
+        local ProfileAvatarHolder = New("Frame", {
+            BackgroundColor3 = "MainColor",
+            Size = UDim2.fromOffset(32, 32),
+            Parent = ProfileButton,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = ProfileAvatarHolder,
+        })
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Parent = ProfileAvatarHolder,
+        })
+        ProfileAvatar = New("ImageLabel", {
+            BackgroundTransparency = 1,
+            Image = "",
+            Size = UDim2.fromScale(1, 1),
+            Parent = ProfileAvatarHolder,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = ProfileAvatar,
+        })
+
+        local ProfileTextHolder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -40, 1, 0),
+            Parent = ProfileButton,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Parent = ProfileTextHolder,
+        })
+
+        ProfileNameLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 16),
+            Text = Library.LocalPlayer.DisplayName,
+            TextSize = 13,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = ProfileTextHolder,
+        })
+        ProfileUserLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 14),
+            Text = "@" .. Library.LocalPlayer.Name,
+            TextSize = 11,
+            TextTransparency = 0.5,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = ProfileTextHolder,
+        })
+
+        task.spawn(function()
+            local Success, Content = pcall(function()
+                local Thumb, IsReady =
+                    Players:GetUserThumbnailAsync(Library.LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+                return IsReady and Thumb or nil
+            end)
+
+            if Success and Content and ProfileAvatar then
+                ProfileAvatar.Image = Content
+            end
+        end)
 
         --// Container \\--
         Container = New("Frame", {
@@ -8503,6 +8623,11 @@ function Library:CreateWindow(WindowInfo)
             WindowIcon.Visible = IsCompact
         end
 
+        if ProfileNameLabel and ProfileUserLabel then
+            ProfileNameLabel.Visible = not IsCompact
+            ProfileUserLabel.Visible = not IsCompact
+        end
+
         for _, Button in Library.TabButtons do
             if not Button.Icon then
                 continue
@@ -8536,14 +8661,47 @@ function Library:CreateWindow(WindowInfo)
 
         TitleHolder.Size = UDim2.new(0, Width, 1, 0)
         RightWrapper.Size = UDim2.new(1, -Width - 57 - 1, 1, -16)
-        Tabs.Size = UDim2.new(0, Width, 1, -70)
+        Tabs.Size = UDim2.new(0, Width, 1, -70 - GetProfileOffset())
         Container.Size = UDim2.new(1, -Width - 1, 1, -70)
+
+        if ProfileFrame then
+            ProfileFrame.Size = UDim2.new(0, Width, 0, ProfileBarHeight)
+        end
 
         if WindowInfo.EnableCompacting then
             ApplyCompact()
         end
         if not IsCompact then
             LastExpandedWidth = Width
+        end
+    end
+
+    --// Profile Toggle \\--
+    function Window:SetProfileVisible(State: boolean)
+        assert(typeof(State) == "boolean", "Expected boolean for State got: " .. typeof(State))
+
+        ProfileVisible = State
+        WindowInfo.ShowProfile = State
+        ProfileFrame.Visible = State
+
+        Window:SetSidebarWidth(Window:GetSidebarWidth())
+    end
+
+    function Window:ToggleProfile()
+        Window:SetProfileVisible(not ProfileVisible)
+        return ProfileVisible
+    end
+
+    function Window:IsProfileVisible()
+        return ProfileVisible
+    end
+
+    function Window:SetProfileInfo(Name: string?, Subtitle: string?)
+        if Name then
+            ProfileNameLabel.Text = Name
+        end
+        if Subtitle then
+            ProfileUserLabel.Text = Subtitle
         end
     end
 
