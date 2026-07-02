@@ -336,6 +336,8 @@ local Templates = {
         ShowMobileButtons = true,
         MobileButtonsSide = "Left",
 
+        ShowHeaderGlow = true,
+
         UnlockMouseWhileOpen = true,
 
         EnableSidebarResize = false,
@@ -2094,7 +2096,6 @@ function Library:AddDraggableImageButton(...)
     local Func
     local ExcludeScaling
     local ExcludeDragging
-    local Circular -- [BARU]
 
     if typeof(Params) == "table" then
         Icon = Params.Icon
@@ -2102,7 +2103,6 @@ function Library:AddDraggableImageButton(...)
         Func = Params.Callback or Params.Func
         ExcludeScaling = Params.ExcludeScaling
         ExcludeDragging = Params.ExcludeDragging
-        Circular = Params.Circular -- [BARU]
     elseif typeof(Params) == "string" or typeof(Params) == "number" then
         Icon = Params
         IconSize = select(2, ...)
@@ -2118,7 +2118,6 @@ function Library:AddDraggableImageButton(...)
         Position = UDim2.fromOffset(6, 6),
         Size = UDim2.fromOffset(IconSize + 12, IconSize + 12),
         Text = "",
-        ClipsDescendants = true, -- [BARU] biar icon ikut ke-mask bulat
         ZIndex = 10,
         Parent = ScreenGui,
     })
@@ -2133,22 +2132,13 @@ function Library:AddDraggableImageButton(...)
         Parent = Button,
     })
 
-    -- [DIUBAH] corner jadi kondisional
-    if Circular then
+    table.insert(
+        Library.Corners, 
         New("UICorner", {
-            CornerRadius = UDim.new(1, 0),
+            CornerRadius = UDim.new(0, Library.CornerRadius),
             Parent = Button,
         })
-    else
-        table.insert(
-            Library.Corners, 
-            New("UICorner", {
-                CornerRadius = UDim.new(0, Library.CornerRadius),
-                Parent = Button,
-            })
-        )
-    end
-
+    )
     if not ExcludeScaling then
         table.insert(
             Library.Scales,
@@ -7984,6 +7974,8 @@ function Library:CreateWindow(WindowInfo)
     local BackgroundImage
     local BottomBackground
     local FooterLabel
+    local HeaderGlow
+    local HeaderGlowBar
 
     local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
     local IsCompact = WindowInfo.SidebarCompacted
@@ -8059,6 +8051,65 @@ function Library:CreateWindow(WindowInfo)
             MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2, 0.5, -MainFrame.Size.Y.Offset / 2)
         end
 
+        --// Header Glow Accent Bar \\--
+        HeaderGlow = New("Frame", {
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.new(1, 0, 0, 28),
+            ZIndex = 5,
+            Visible = WindowInfo.ShowHeaderGlow,
+            Parent = MainFrame,
+        })
+
+        local HeaderGlowSpread = New("Frame", {
+            BackgroundColor3 = "AccentColor",
+            BackgroundTransparency = 0.55,
+            BorderSizePixel = 0,
+            Size = UDim2.fromScale(1, 1),
+            ZIndex = 5,
+            Parent = HeaderGlow,
+        })
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                Parent = HeaderGlowSpread,
+            })
+        )
+        New("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0),
+                NumberSequenceKeypoint.new(1, 1),
+            }),
+            Rotation = 90,
+            Parent = HeaderGlowSpread,
+        })
+
+        HeaderGlowBar = New("Frame", {
+            BackgroundColor3 = "AccentColor",
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.new(1, 0, 0, 2),
+            ZIndex = 6,
+            Parent = HeaderGlow,
+        })
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                Parent = HeaderGlowBar,
+            })
+        )
+        New("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.35),
+                NumberSequenceKeypoint.new(0.5, 0),
+                NumberSequenceKeypoint.new(1, 0.35),
+            }),
+            Parent = HeaderGlowBar,
+        })
+
         --// Top Bar \\-
         local TopBar = New("Frame", {
             BackgroundTransparency = 1,
@@ -8066,104 +8117,6 @@ function Library:CreateWindow(WindowInfo)
             Parent = MainFrame,
         })
         Library:MakeDraggable(MainFrame, TopBar, false, true)
-        
-        --// Accent Glow Bar \\--
-        local AccentBarThickness = 3
-        local AccentBarEnabled = true
-        local AccentGlowTween -- pegang tween aktif biar bisa di-cancel
-
-        local AccentBar = New("Frame", {
-            Name = "AccentBar",
-            BackgroundColor3 = "AccentColor",
-            BorderSizePixel = 0,
-            Size = UDim2.new(1, 0, 0, AccentBarThickness),
-            Visible = AccentBarEnabled,
-            ZIndex = 50,
-            Parent = MainFrame,
-        })
-        local AccentBarCorner = New("UICorner", {
-            TopLeftRadius = UDim.new(0, WindowInfo.CornerRadius),
-            TopRightRadius = UDim.new(0, WindowInfo.CornerRadius),
-            BottomLeftRadius = UDim.new(0, 0),
-            BottomRightRadius = UDim.new(0, 0),
-            Parent = AccentBar,
-        })
-        table.insert(Library.SpecificCorners, AccentBarCorner)
-
-        local AccentGlow = New("ImageLabel", {
-            Name = "AccentGlow",
-            AnchorPoint = Vector2.new(0.5, 0),
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0.5, 0, 0, -10),
-            Size = UDim2.new(1, 20, 0, AccentBarThickness + 19),
-            Image = "rbxassetid://0", -- <-- GANTI dengan gambar glow/blur soft
-            ImageColor3 = "AccentColor",
-            ImageTransparency = 0.4,
-            ScaleType = Enum.ScaleType.Stretch,
-            Visible = AccentBarEnabled,
-            ZIndex = 49,
-            Parent = MainFrame,
-        })
-
-        local function StopAccentGlowLoop()
-            if AccentGlowTween then
-                AccentGlowTween:Cancel()
-                AccentGlowTween = nil
-            end
-        end
-
-        local function StartAccentGlowLoop()
-            StopAccentGlowLoop()
-
-            task.spawn(function()
-                while AccentBarEnabled and AccentGlow and AccentGlow.Parent and not Library.Unloaded do
-                    AccentGlowTween = TweenService:Create(AccentGlow, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                        ImageTransparency = 0.65,
-                    })
-                    AccentGlowTween:Play()
-                    task.wait(1.3)
-                    if not AccentBarEnabled or not (AccentGlow and AccentGlow.Parent) or Library.Unloaded then break end
-
-                    AccentGlowTween = TweenService:Create(AccentGlow, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                        ImageTransparency = 0.3,
-                    })
-                    AccentGlowTween:Play()
-                    task.wait(1.3)
-                end
-            end)
-        end
-
-        --// Public Controls \\--
-        function Window:SetAccentBarEnabled(Enabled: boolean)
-            AccentBarEnabled = Enabled
-
-            AccentBar.Visible = Enabled
-            AccentGlow.Visible = Enabled
-
-            if Enabled then
-                StartAccentGlowLoop()
-            else
-                StopAccentGlowLoop()
-            end
-        end
-
-        function Window:GetAccentBarEnabled()
-            return AccentBarEnabled
-        end
-
-        function Window:SetAccentBarThickness(Thickness: number)
-            Thickness = math.clamp(Thickness, 1, 12)
-            AccentBarThickness = Thickness
-
-            AccentBar.Size = UDim2.new(1, 0, 0, Thickness)
-            AccentGlow.Size = UDim2.new(1, 20, 0, Thickness + 19)
-        end
-
-        function Window:GetAccentBarThickness()
-            return AccentBarThickness
-        end
-
-        StartAccentGlowLoop()
 
         --// Title \\--
         TitleHolder = New("Frame", {
@@ -8479,6 +8432,17 @@ function Library:CreateWindow(WindowInfo)
         end
 
         WindowInfo.BackgroundImage = Image
+    end
+
+    function Window:SetHeaderGlow(Enabled: boolean)
+        assert(typeof(Enabled) == "boolean", "Expected boolean for Enabled got: " .. typeof(Enabled))
+
+        WindowInfo.ShowHeaderGlow = Enabled
+        HeaderGlow.Visible = Enabled
+    end
+
+    function Window:IsHeaderGlowEnabled()
+        return WindowInfo.ShowHeaderGlow
     end
 
     function Window:SetFooter(Footer: string)
@@ -10575,39 +10539,60 @@ function Library:CreateWindow(WindowInfo)
     end
 
     if Library.IsMobile then
-        local ToggleButton = Library:AddDraggableImageButton({
-            Icon = "rbxassetid://91112706169806",
-            IconSize = 26,
-            Circular = true,
-            ExcludeScaling = true,
-            ExcludeDragging = true,
-            Callback = function()
-                Library:Toggle()
-            end,
-        })
-
-        local LockButton = Library:AddDraggableButton("Lock", function(self)
-            Library.CantDragForced = not Library.CantDragForced
-            self:SetText(Library.CantDragForced and "Unlock" or "Lock")
+        local ToggleButton = Library:AddDraggableButton("", function()
+            Library:Toggle()
         end, true, true)
 
-        if WindowInfo.MobileButtonsSide == "Right" then
-            ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
-            ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
+        --// Turn the toggle button into a circular icon button \\--
+        local ToggleBtn = ToggleButton.Button
+        local ToggleBtnSize = 44
 
-            LockButton.Button.AnchorPoint = Vector2.new(1, 0)
-            LockButton.Button.Position = UDim2.new(1, -(ToggleButton.Button.Size.X.Offset + 12), 0, 6)
+        ToggleBtn.Text = ""
+        ToggleBtn.AutoButtonColor = false
+        ToggleBtn.Size = UDim2.fromOffset(ToggleBtnSize, ToggleBtnSize)
+
+        local ToggleBtnCorner = ToggleBtn:FindFirstChildOfClass("UICorner")
+        if ToggleBtnCorner then
+            -- Untrack from the global corner-radius list so it always stays a perfect circle
+            local CornerIdx = table.find(Library.Corners, ToggleBtnCorner)
+            if CornerIdx then
+                table.remove(Library.Corners, CornerIdx)
+            end
+            ToggleBtnCorner.CornerRadius = UDim.new(1, 0)
         else
-            ToggleButton.Button.AnchorPoint = Vector2.new(0, 0)
-            ToggleButton.Button.Position = UDim2.fromOffset(6, 6)
+            New("UICorner", {
+                CornerRadius = UDim.new(1, 0),
+                Parent = ToggleBtn,
+            })
+        end
 
-            LockButton.Button.AnchorPoint = Vector2.new(0, 0)
-            LockButton.Button.Position = UDim2.fromOffset(ToggleButton.Button.Size.X.Offset + 12, 6)
+        --// Icon matches the window icon, falling back to a generic menu icon \\--
+        local ToggleIconData = (WindowInfo.Icon and Library:GetCustomIcon(WindowInfo.Icon)) or Library:GetIcon("menu")
+        if ToggleIconData then
+            New("ImageLabel", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundTransparency = 1,
+                Image = ToggleIconData.Url,
+                ImageColor3 = ToggleIconData.Custom and "WhiteColor" or "FontColor",
+                ImageRectOffset = ToggleIconData.ImageRectOffset,
+                ImageRectSize = ToggleIconData.ImageRectSize,
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.fromOffset(22, 22),
+                ZIndex = 11,
+                Parent = ToggleBtn,
+            })
+        end
+
+        if WindowInfo.MobileButtonsSide == "Right" then
+            ToggleBtn.AnchorPoint = Vector2.new(1, 0)
+            ToggleBtn.Position = UDim2.new(1, -6, 0, 6)
+        else
+            ToggleBtn.AnchorPoint = Vector2.new(0, 0)
+            ToggleBtn.Position = UDim2.fromOffset(6, 6)
         end
 
         if WindowInfo.ShowMobileButtons == false then
-            ToggleButton.Button.Visible = false
-            LockButton.Button.Visible = false
+            ToggleBtn.Visible = false
         end
     end
 
