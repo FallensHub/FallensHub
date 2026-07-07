@@ -1,6 +1,6 @@
 local games = {
     [10200395747] = "https://pastefy.app/lt0M0Rxm/raw", -- gag2
-    [6739698191] = "https://pastefy.app/ivYYMevm/raw" -- vd
+    [6739698191] = "https://pastefy.app/Ql67cygF/raw" -- vd
 }
 
 local StarterGui = game:GetService("StarterGui")
