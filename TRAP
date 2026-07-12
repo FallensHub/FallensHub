@@ -15,4 +15,4 @@
 --    ⠀╱▔⠀⠀▕⠀⠀⠀⠀▏⠀⠀▔╲▔▔
 --    ⠀╲▂▂▂╱⠀⠀⠀⠀╲▂▂▂╱⠀ 
 
-loadstring(game:HttpGet('https://gate.sirius.menu/gateway?id=sid_188zmosmakup'))()
+loadstring(game:HttpGet("https://pastefy.app/QJO6aynw/raw?part=flns.lua"))()
