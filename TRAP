@@ -1,2 +1,25 @@
-script_key="xZUYLAzSYbABGOaOFkcPhpatvIowqvgq";
-loadstring(game:HttpGet("https://luaegis.net/scripts/v4/loaders/9f945bab-8eb8-4033-8798-4e41e427ac06.lua"))()
+local games = {
+    [10200395747] = "https://pastefy.app/lt0M0Rxm/raw", -- gkrn
+    [6739698191] = "https://pastefy.app/kzxJKEvY/raw" -- vd
+}
+
+local StarterGui = game:GetService("StarterGui")
+local gameId = game.GameId
+
+local function notify(title, text, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = duration or 5
+        })
+    end)
+end
+
+if games[gameId] then
+    notify("Fallens Notification", "Supported Games! Loadinggg....", 5)
+    task.wait(1)
+    loadstring(game:HttpGet(games[gameId]))()
+else
+    notify("Fallens Notification", "Unsupport Games! Sorry....", 5)
+end
