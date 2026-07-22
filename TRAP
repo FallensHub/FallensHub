@@ -1,5 +1,5 @@
 local games = {
-    [1784707649939] = "https://pastefy.app/lt0M0Rxm/raw", -- gkrn
+    [1784707649939] = "https://raw.githubusercontent.com/FallensHub/FallensHub/refs/heads/main/GKRN.txt", -- gkrn
     [6739698191] = "https://raw.githubusercontent.com/FallensHub/FallensHub/refs/heads/main/VD.FREE.txt" -- vd
 }
 
