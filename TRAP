@@ -1,6 +1,6 @@
 local games = {
     [10200395747] = "https://pastefy.app/lt0M0Rxm/raw", -- gkrn
-    [6739698191] = "https://pastefy.app/kzxJKEvY/raw" -- vd
+    [6739698191] = "https://raw.githubusercontent.com/FallensHub/FallensHub/refs/heads/main/VD.FREE.txt" -- vd
 }
 
 local StarterGui = game:GetService("StarterGui")
